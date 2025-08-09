@@ -1,0 +1,4 @@
+sendgrid==6.10.0
+requests
+python-dotenv
+
