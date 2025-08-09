@@ -1,5 +1,3 @@
-!pip install sendgrid requests -q
-
 import requests, datetime as dt
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
