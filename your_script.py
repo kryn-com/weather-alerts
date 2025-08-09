@@ -14,8 +14,8 @@ FORECAST_DAYS   = 10                 # look-ahead window
 FROM_EMAIL      = "kryn@kryn.com"  # must be a verified SendGrid sender
 TO_EMAILS       = ["9193800995@msg.fi.google.com"]
 
-# Replace with your key or set via environment var and read it instead.
-SENDGRID_API_KEY = "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"
+import os
+SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
 
 # =========================
 # Email helper
