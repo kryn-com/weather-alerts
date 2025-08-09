@@ -1,0 +1,27 @@
+name: Weather Alert
+
+on:
+  schedule:
+    - cron: '0 11,23 * * *'  # Runs at 7AM and 7PM Eastern (UTC-4)
+  workflow_dispatch:         # Allows manual run if needed
+
+jobs:
+  run-weather:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run script
+        run: python your_script.py
+        env:
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
