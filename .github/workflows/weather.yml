@@ -2,8 +2,8 @@ name: Weather Alert
 
 on:
   schedule:
-    - cron: '0 11,23 * * *'  # Runs at 7AM and 7PM Eastern (UTC-4)
-  workflow_dispatch:         # Allows manual run if needed
+    - cron: '0 11,23 * * *'  # 11:00 UTC and 23:00 UTC
+  workflow_dispatch:         # Allows manual triggers from GitHub Actions UI
 
 jobs:
   run-weather:
@@ -11,10 +11,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -22,6 +22,6 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run script
-        run: python your_script.py
+        run: python weather.py  # Replace weather.py with your exact filename
         env:
           SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
