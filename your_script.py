@@ -1,9 +1,10 @@
 import os
 import requests
 import datetime as dt
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
+import resend
 from dotenv import load_dotenv
+
+# Load environment variables from a local .env file (if running locally)
 load_dotenv()
 
 # =========================
@@ -15,30 +16,33 @@ TIMEZONE = "America/New_York"
 THRESHOLD_F = 78
 FORECAST_DAYS = 10
 
-FROM_EMAIL = "kryn@kryn.com"
+# Default Resend onboarding sender (use this unless you verify a custom domain)
+FROM_EMAIL = "Beaufort Weather <onboarding@resend.dev>"
 TO_EMAILS = ["9193800995@msg.fi.google.com"]
 
-SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
+# Set the Resend API key from environment variables
+resend.api_key = os.environ.get("RESEND_API_KEY")
+
 
 # =========================
-# Email helper
+# Email Helper (Resend)
 # =========================
 def send_email(subject: str, content: str, to_emails=TO_EMAILS):
-    if not SENDGRID_API_KEY:
-        raise ValueError("SENDGRID_API_KEY environment variable is not set.")
+    if not resend.api_key:
+        raise ValueError("RESEND_API_KEY environment variable is not set.")
 
-    sg = SendGridAPIClient(SENDGRID_API_KEY)
-    for to in to_emails:
-        msg = Mail(
-            from_email=FROM_EMAIL,
-            to_emails=to,
-            subject=subject[:120],
-            plain_text_content=content[:4000],
-        )
-        sg.send(msg)
+    params: resend.Emails.SendParams = {
+        "from": FROM_EMAIL,
+        "to": to_emails,
+        "subject": subject[:120],
+        "text": content[:4000],
+    }
+    
+    return resend.Emails.send(params)
+
 
 # =========================
-# Weather fetch + logic
+# Weather Fetch + Logic
 # =========================
 def fetch_daily_highs_f(lat, lon, days=FORECAST_DAYS, tz=TIMEZONE):
     url = "https://api.open-meteo.com/v1/forecast"
@@ -57,6 +61,7 @@ def fetch_daily_highs_f(lat, lon, days=FORECAST_DAYS, tz=TIMEZONE):
     highs = data["daily"]["temperature_2m_max"]
     return dates, highs
 
+
 def pick_matching_dates(dates, highs, threshold_f=THRESHOLD_F):
     matches = []
     for d, h in zip(dates, highs):
@@ -68,11 +73,14 @@ def pick_matching_dates(dates, highs, threshold_f=THRESHOLD_F):
     matches.sort(key=lambda x: x[0])
     return matches
 
+
 def format_match_lines(matches):
+    # Format: "Sat 09 Aug 2025 78F"
     return [f"{d.strftime('%a %d %b %Y')} {t:.0f}F" for d, t in matches]
 
+
 # =========================
-# Main run
+# Main Run
 # =========================
 if __name__ == "__main__":
     try:
