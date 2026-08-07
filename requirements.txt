@@ -1,3 +1,2 @@
-resend
 requests
 python-dotenv
