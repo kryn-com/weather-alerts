@@ -1,10 +1,11 @@
 import os
+import smtplib
 import requests
 import datetime as dt
-import resend
+from email.mime.text import MIMEText
 from dotenv import load_dotenv
 
-# Load environment variables from a local .env file (if running locally)
+# Load environment variables from a local .env file (for local testing)
 load_dotenv()
 
 # =========================
@@ -16,29 +17,31 @@ TIMEZONE = "America/New_York"
 THRESHOLD_F = 78
 FORECAST_DAYS = 10
 
-# Default Resend onboarding sender (use this unless you verify a custom domain)
-FROM_EMAIL = "Beaufort Weather <onboarding@resend.dev>"
 TO_EMAILS = ["9193800995@msg.fi.google.com"]
 
-# Set the Resend API key from environment variables
-resend.api_key = os.environ.get("RESEND_API_KEY")
+# Retrieve Gmail credentials from environment variables
+GMAIL_USER = os.environ.get("GMAIL_USER")
+GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD")
 
 
 # =========================
-# Email Helper (Resend)
+# Email Helper (Gmail SMTP)
 # =========================
 def send_email(subject: str, content: str, to_emails=TO_EMAILS):
-    if not resend.api_key:
-        raise ValueError("RESEND_API_KEY environment variable is not set.")
+    if not GMAIL_USER or not GMAIL_APP_PASSWORD:
+        raise ValueError("GMAIL_USER or GMAIL_APP_PASSWORD environment variable is not set.")
 
-    params: resend.Emails.SendParams = {
-        "from": FROM_EMAIL,
-        "to": to_emails,
-        "subject": subject[:120],
-        "text": content[:4000],
-    }
-    
-    return resend.Emails.send(params)
+    # Truncate content to safe lengths
+    msg = MIMEText(content[:4000], "plain", "utf-8")
+    msg["Subject"] = subject[:120]
+    msg["From"] = GMAIL_USER
+
+    # Connect to Google's SSL SMTP server on port 465
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+        for to in to_emails:
+            msg["To"] = to
+            server.sendmail(GMAIL_USER, to, msg.as_string())
 
 
 # =========================
