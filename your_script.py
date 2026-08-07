@@ -1,26 +1,30 @@
-import requests, datetime as dt
+import os
+import requests
+import datetime as dt
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 
 # =========================
 # Configuration
 # =========================
-LOCATION_NAME   = "Beaufort, NC"
-LAT, LON        = 34.72, -76.66
-TIMEZONE        = "America/New_York"
-THRESHOLD_F     = 78                 # testing threshold per request
-FORECAST_DAYS   = 10                 # look-ahead window
+LOCATION_NAME = "Beaufort, NC"
+LAT, LON = 34.72, -76.66
+TIMEZONE = "America/New_York"
+THRESHOLD_F = 78
+FORECAST_DAYS = 10
 
-FROM_EMAIL      = "kryn@kryn.com"  # must be a verified SendGrid sender
-TO_EMAILS       = ["9193800995@msg.fi.google.com"]
+FROM_EMAIL = "kryn@kryn.com"
+TO_EMAILS = ["9193800995@msg.fi.google.com"]
 
-import os
 SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
 
 # =========================
 # Email helper
 # =========================
 def send_email(subject: str, content: str, to_emails=TO_EMAILS):
+    if not SENDGRID_API_KEY:
+        raise ValueError("SENDGRID_API_KEY environment variable is not set.")
+
     sg = SendGridAPIClient(SENDGRID_API_KEY)
     for to in to_emails:
         msg = Mail(
@@ -54,6 +58,8 @@ def fetch_daily_highs_f(lat, lon, days=FORECAST_DAYS, tz=TIMEZONE):
 def pick_matching_dates(dates, highs, threshold_f=THRESHOLD_F):
     matches = []
     for d, h in zip(dates, highs):
+        if h is None:
+            continue
         day = dt.date.fromisoformat(d)
         if float(h) <= threshold_f:
             matches.append((day, float(h)))
@@ -61,33 +67,33 @@ def pick_matching_dates(dates, highs, threshold_f=THRESHOLD_F):
     return matches
 
 def format_match_lines(matches):
-    # Format: "Sat 09 Aug 2025 82F"
     return [f"{d.strftime('%a %d %b %Y')} {t:.0f}F" for d, t in matches]
 
 # =========================
 # Main run
 # =========================
-try:
-    dates, highs = fetch_daily_highs_f(LAT, LON, FORECAST_DAYS, TIMEZONE)
-    matches = pick_matching_dates(dates, highs, THRESHOLD_F)
-
-    if not matches:
-        subject = "Beaufort weather"
-        body    = "No cool days in sight in Beaufort"
-        send_email(subject, body)
-        print(body)
-    else:
-        lines = format_match_lines(matches)
-        subject = "Beaufort upcoming cool days"
-        body    = "\n".join(lines)
-        send_email(subject, body)
-        print("Sent:\n" + body)
-
-except Exception as e:
-    # Send a simple failure email as requested
+if __name__ == "__main__":
     try:
-        send_email("Beaufort weather check failed", "Beaufort weather check failed")
-    except Exception:
-        pass
-    print(f"Failed with error: {type(e).__name__}: {e}")
-    raise
+        dates, highs = fetch_daily_highs_f(LAT, LON, FORECAST_DAYS, TIMEZONE)
+        matches = pick_matching_dates(dates, highs, THRESHOLD_F)
+
+        if not matches:
+            subject = "Beaufort weather"
+            body = "No cool days in sight in Beaufort"
+            send_email(subject, body)
+            print(body)
+        else:
+            lines = format_match_lines(matches)
+            subject = "Beaufort upcoming cool days"
+            body = "\n".join(lines)
+            send_email(subject, body)
+            print("Sent:\n" + body)
+
+    except Exception as e:
+        error_msg = f"Failed with error: {type(e).__name__}: {e}"
+        print(error_msg)
+        try:
+            send_email("Beaufort weather check failed", error_msg)
+        except Exception as send_err:
+            print(f"Could not send failure notification email: {send_err}")
+        raise
