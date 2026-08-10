@@ -24,17 +24,6 @@ GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD")
 # =========================
 # Scoring Functions
 # =========================
-def score_dewpoint(dew_f: float) -> tuple[str, int]:
-    if dew_f < 64:
-        return "➕", 3
-    elif 64 <= dew_f <= 68:
-        return "☑️", 2
-    elif 69 <= dew_f <= 73:
-        return "⚠️", 1
-    else:  # 74+
-        return "❌", 0
-
-
 def score_temperature(temp_f: float) -> tuple[str, int]:
     if temp_f < 76:
         return "➕", 3
@@ -43,6 +32,17 @@ def score_temperature(temp_f: float) -> tuple[str, int]:
     elif 83 <= temp_f <= 88:
         return "⚠️", 1
     else:  # 89+
+        return "❌", 0
+
+
+def score_dewpoint(dew_f: float) -> tuple[str, int]:
+    if dew_f < 64:
+        return "➕", 3
+    elif 64 <= dew_f <= 68:
+        return "☑️", 2
+    elif 69 <= dew_f <= 73:
+        return "⚠️", 1
+    else:  # 74+
         return "❌", 0
 
 
@@ -103,7 +103,6 @@ def fetch_weather_data(lat, lon, days=FORECAST_DAYS, tz=TIMEZONE):
         if highs[i] is None:
             continue
 
-        # Extract 24 hours of data for the day
         start_idx = i * 24
         end_idx = start_idx + 24
         
@@ -113,27 +112,26 @@ def fetch_weather_data(lat, lon, days=FORECAST_DAYS, tz=TIMEZONE):
         if not day_dews or not day_winds:
             continue
 
-        # Use maximum dew point and peak wind speed during daylight hours
         peak_dew = max(day_dews)
         peak_wind = max(day_winds)
         high_temp = float(highs[i])
 
-        dew_icon, dew_pts = score_dewpoint(peak_dew)
         temp_icon, temp_pts = score_temperature(high_temp)
+        dew_icon, dew_pts = score_dewpoint(peak_dew)
         wind_icon, wind_pts = score_wind(peak_wind)
 
-        total_pts = dew_pts + temp_pts + wind_pts
+        total_pts = temp_pts + dew_pts + wind_pts
 
         daily_scores.append({
             "date": dt.date.fromisoformat(dates[i]),
             "high": high_temp,
             "dew": peak_dew,
             "wind": peak_wind,
-            "icons": f"{dew_icon}{temp_icon}{wind_icon}",
+            # Order aligned: Temp, Dew, Wind
+            "icons": f"{temp_icon}{dew_icon}{wind_icon}",
             "score": total_pts,
         })
 
-    # Sort chronologically by date
     daily_scores.sort(key=lambda x: x["date"])
     return daily_scores
 
@@ -141,9 +139,9 @@ def fetch_weather_data(lat, lon, days=FORECAST_DAYS, tz=TIMEZONE):
 def format_summary(scores):
     lines = []
     for s in scores:
-        date_str = s["date"].strftime("%a %d %b")
-        # Format: Sat 15 Aug [8/9] ➕➕☑️ | 76F | Dew 61F | Wind 11mph
-        line = f"{date_str} [{s['score']}/9] {s['icons']} | {s['high']:.0f}F | Dew {s['dew']:.0f}F | Wind {s['wind']:.0f}mph"
+        date_str = s["date"].strftime("%a %d")
+        # Format: Sat 15 [8] ➕➕☑️ | T76F | D61F | W11mph
+        line = f"{date_str} [{s['score']}] {s['icons']} | T{s['high']:.0f}F | D{s['dew']:.0f}F | W{s['wind']:.0f}mph"
         lines.append(line)
     return "\n".join(lines)
 
@@ -159,9 +157,8 @@ if __name__ == "__main__":
             subject = "Beaufort Weather Score"
             body = "Unable to calculate weather scores for Beaufort."
         else:
-            # Find the top-rated day(s) for the subject line
             best_day = max(scores, key=lambda x: x["score"])
-            subject = f"Beaufort 10-Day Outlook (Best: {best_day['date'].strftime('%a %d')} [{best_day['score']}/9])"
+            subject = f"Beaufort 10-Day Outlook (Best: {best_day['date'].strftime('%a %d')} [{best_day['score']}])"
             body = format_summary(scores)
 
         send_email(subject, body)
