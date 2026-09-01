@@ -2,7 +2,7 @@ name: Weather Alert
 
 on:
   schedule:
-    - cron: '0 11,23 * * *'  # 11:00 UTC and 23:00 UTC
+     - cron: '0 11 * * *'  # 7am ET during EDT  
   workflow_dispatch:         # Allows manual triggers from GitHub Actions UI
 
 jobs:
